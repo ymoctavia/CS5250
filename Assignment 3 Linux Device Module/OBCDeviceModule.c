@@ -59,7 +59,9 @@ ssize_t onebyte_write(struct file *filep, const char *buf, size_t count, loff_t 
 	if(count > sizeof(char))
 	{
 		printk(KERN_ALERT "No space left on device\n");
-		return -EINVAL;
+
+		/*Return Linux System Error<28>: No space left on device */
+		return -ENOSPC; 
 	}
 
 	bytes_write ++;

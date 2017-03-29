@@ -29,8 +29,13 @@ struct file_operations fourMB_fops = {
 
 char *fourMB_data = NULL;
 
+char *data_pointer = NULL;
+size_t dataLength = 0;
+
 int fourMB_open(struct inode *inode, struct file *filep)
 {
+	data_pointer = fourMB_data;
+	dataLength = 0;
 	return 0; // always successful
 }
 int fourMB_release(struct inode *inode, struct file *filep)
@@ -40,23 +45,48 @@ int fourMB_release(struct inode *inode, struct file *filep)
 ssize_t fourMB_read(struct file *filep, char *buf, size_t count, loff_t *f_pos)
 {
 	int bytes_read = 0;
-	
+
 	/* Check if the buffer has been written */
-	if(*buf != 0){
-		return 0;	
+	if (*data_pointer == 0){
+                return 0;
 	}
-	copy_to_user(buf, fourMB_data, sizeof(char));
 	
-	bytes_read ++;
+	while (count && *data_pointer) {
+
+                copy_to_user(buf++, data_pointer++, sizeof(char));
+
+                count--;
+                bytes_read++;
+        }
+	
+
+	printk("R-Bytes read: %d ", bytes_read);
+	printk("R-Count: %lu ", count);
+	
 	return bytes_read;
 }
 ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *f_pos)
-{
-	int bytes_write = 0;	
-	copy_from_user(fourMB_data, buf, sizeof(char));
+{	
+	int bytes_write = 0;
+
+	size_t pre_dataLength = dataLength;
+	dataLength += count;
+	
+	if(dataLength < 1024*1024*4*sizeof(char)){
+		copy_from_user(data_pointer, buf, count);
+		data_pointer += count;
+		buf += count;
+		bytes_write += count;
+	} else {
+		copy_from_user(fourMB_data, buf, 1024*1024*4*sizeof(char) - pre_dataLength);
+		bytes_write += 1024*1024*4*sizeof(char) - pre_dataLength;
+	}
+
+	printk("W-datalength: %lu ", dataLength);
+	printk("W-RealLength: %lu ", strlen(fourMB_data));
 
 	/* Check the length of the bytes that have been written*/
-	if(count > sizeof(char))
+	if(dataLength > 1024*1024*4*sizeof(char))
 	{
 		printk(KERN_ALERT "No space left on device\n");
 
@@ -64,7 +94,7 @@ ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *
 		return -ENOSPC; 
 	}
 
-	bytes_write ++;
+
 	return bytes_write;
 }
 
@@ -76,11 +106,12 @@ static int fourMB_init(void)
 	if (result < 0) {
 		return result;
 	}
-	// allocate one byte of memory for storage
+	// allocate 4 MB of memory for storage
 	// kmalloc is just like malloc, the second parameter is
 	// the type of memory to be allocated.
 	// To release the memory allocated by kmalloc, use kfree.
-	fourMB_data = kmalloc(sizeof(char), GFP_KERNEL);
+	fourMB_data = kmalloc(1024*1024*4*sizeof(char), GFP_KERNEL);
+
 
 	if (!fourMB_data) {
 		fourMB_exit();
@@ -91,6 +122,7 @@ static int fourMB_init(void)
 
 	// initialize the value to be X
 	*fourMB_data = 'X';
+	data_pointer = fourMB_data;
 
 	printk(KERN_ALERT "This is a fourMB device module\n");
 	return 0;
@@ -108,7 +140,7 @@ static void fourMB_exit(void)
 
 	// unregister the device
 	unregister_chrdev(MAJOR_NUMBER, "fourMB");
-	printk(KERN_ALERT "Onebyte device module is unloaded\n");
+	printk(KERN_ALERT "FourMB device module is unloaded\n");
 }
 
 MODULE_LICENSE("GPL");

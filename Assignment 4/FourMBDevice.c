@@ -78,7 +78,9 @@ ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *
 		buf += count;
 		bytes_write += count;
 	} else {
-		copy_from_user(fourMB_data, buf, 1024*1024*4*sizeof(char) - pre_dataLength);
+		copy_from_user(data_pointer, buf, 1024*1024*4*sizeof(char) - pre_dataLength);
+		data_pointer += 1024*1024*4*sizeof(char) - pre_dataLength;
+		buf += 1024*1024*4*sizeof(char) - pre_dataLength;
 		bytes_write += 1024*1024*4*sizeof(char) - pre_dataLength;
 	}
 

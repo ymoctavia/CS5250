@@ -30,75 +30,96 @@ struct file_operations fourMB_fops = {
 char *fourMB_data = NULL;
 
 char *data_pointer = NULL;
-size_t dataLength = 0;
+size_t data_length_written = 0;
+size_t data_length_to_read = 0;
+int bytes_written_total = 0;
+int bytes_read_total = 0; 
 
 int fourMB_open(struct inode *inode, struct file *filep)
 {
+	//re-align data pointer to the start of data section 	
 	data_pointer = fourMB_data;
-	dataLength = 0;
+	
+	//need to set how many bytes to read for read operation
+	data_length_to_read = data_length_written;
+
+	bytes_written_total = 0;
+	bytes_read_total = 0;
+
 	return 0; // always successful
 }
+
+
 int fourMB_release(struct inode *inode, struct file *filep)
 {
 	return 0; // always successful
 }
+
+
 ssize_t fourMB_read(struct file *filep, char *buf, size_t count, loff_t *f_pos)
 {
 	int bytes_read = 0;
 
-	/* Check if the buffer has been written */
-	if (*data_pointer == 0){
+	/* Check if it the end of the data section */
+	if (data_length_to_read == 0){
+		printk("Total Bytes read: %d ", bytes_read_total);
                 return 0;
 	}
 	
-	while (count && *data_pointer) {
+	while (count && *data_pointer && data_length_to_read) {
 
                 copy_to_user(buf++, data_pointer++, sizeof(char));
 
                 count--;
                 bytes_read++;
+		bytes_read_total ++;
+		data_length_to_read --;
         }
-	
-
-	printk("R-Bytes read: %d ", bytes_read);
-	printk("R-Count: %lu ", count);
 	
 	return bytes_read;
 }
+
+
 ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *f_pos)
 {	
-	int bytes_write = 0;
-
-	size_t pre_dataLength = dataLength;
-	dataLength += count;
+	int bytes_written = 0;	
 	
-	if(dataLength < 1024*1024*4*sizeof(char)){
-		copy_from_user(data_pointer, buf, count);
-		data_pointer += count;
-		buf += count;
-		bytes_write += count;
-	} else {
-		copy_from_user(data_pointer, buf, 1024*1024*4*sizeof(char) - pre_dataLength);
-		data_pointer += 1024*1024*4*sizeof(char) - pre_dataLength;
-		buf += 1024*1024*4*sizeof(char) - pre_dataLength;
-		bytes_write += 1024*1024*4*sizeof(char) - pre_dataLength;
+	//if this function is called first time during current write operation
+	//simple reset the written data length to zero
+	if(data_pointer == fourMB_data){
+		data_length_written = 0;
 	}
 
-	printk("W-datalength: %lu ", dataLength);
-	printk("W-RealLength: %lu ", strlen(fourMB_data));
+	while (count && *buf) {
 
-	/* Check the length of the bytes that have been written*/
-	if(dataLength > 1024*1024*4*sizeof(char))
+                copy_from_user(data_pointer++, buf++, sizeof(char));
+
+                count--;
+                bytes_written++;
+		bytes_written_total++;
+		data_length_written ++;
+		
+		//detect if have writen 4MB data
+		if(data_length_written == 1024*1024*4*sizeof(char)){
+			break;
+		}
+        }
+
+	printk("Total Bytes written so far: %d ", bytes_written_total);
+	
+	//check if data more than 4MB left to be written
+	if(count > 0)
 	{
 		printk(KERN_ALERT "No space left on device\n");
 
 		/*Return Linux System Error<28>: No space left on device */
 		return -ENOSPC; 
 	}
+	
+	return bytes_written;
 
-
-	return bytes_write;
 }
+
 
 static int fourMB_init(void)
 {
@@ -124,7 +145,8 @@ static int fourMB_init(void)
 
 	// initialize the value to be X
 	*fourMB_data = 'X';
-	data_pointer = fourMB_data;
+	data_length_written ++;
+	
 
 	printk(KERN_ALERT "This is a fourMB device module\n");
 	return 0;

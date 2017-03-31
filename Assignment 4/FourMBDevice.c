@@ -91,6 +91,10 @@ ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *
 	}
 
 	while (count && *buf) {
+		//detect if have writen 4MB data
+		if(data_length_written >= 1024*1024*4*sizeof(char)){
+			break;
+		}
 
                 copy_from_user(data_pointer++, buf++, sizeof(char));
 
@@ -98,13 +102,9 @@ ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *
                 bytes_written++;
 		bytes_written_total++;
 		data_length_written ++;
-		
-		//detect if have writen 4MB data
-		if(data_length_written == 1024*1024*4*sizeof(char)){
-			break;
-		}
         }
-
+	
+	printk("Left Count: %lu", count);
 	printk("Total Bytes written so far: %d ", bytes_written_total);
 	
 	//check if data more than 4MB left to be written

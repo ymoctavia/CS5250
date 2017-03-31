@@ -104,7 +104,6 @@ ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *
 		data_length_written ++;
         }
 	
-	printk("Left Count: %lu", count);
 	printk("Total Bytes written so far: %d ", bytes_written_total);
 	
 	//check if data more than 4MB left to be written

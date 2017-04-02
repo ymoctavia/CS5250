@@ -16,6 +16,7 @@ int fourMB_open(struct inode *inode, struct file *filep);
 int fourMB_release(struct inode *inode, struct file *filep);
 ssize_t fourMB_read(struct file *filep, char *buf, size_t count, loff_t *f_pos);
 ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *f_pos);
+loff_t fourMB_lseek(struct file *file, loff_t offset, int orig);
 static void fourMB_exit(void);
 
 
@@ -24,7 +25,8 @@ struct file_operations fourMB_fops = {
 	read: fourMB_read,
 	write: fourMB_write,
 	open: fourMB_open,
-	release: fourMB_release
+	release: fourMB_release,
+	llseek: fourMB_lseek
 };
 
 char *fourMB_data = NULL;
@@ -34,6 +36,40 @@ size_t data_length_written = 0;
 size_t data_length_to_read = 0;
 int bytes_written_total = 0;
 int bytes_read_total = 0; 
+
+loff_t fourMB_lseek(struct file *file, loff_t offset, int whence) {
+
+	loff_t new_position = 0;
+
+	switch(whence) {
+		case SEEK_SET :
+		    new_position = offset;
+		    break;
+		case SEEK_CUR : 
+		    new_position = file->f_pos + offset;
+		    break;
+		case SEEK_END : 
+		    new_position = data_length_written - offset;
+		    break;
+	}
+
+	//check boundary
+	if(new_position > data_length_written){
+		new_position = data_length_written;
+	}
+	
+	if(new_position < 0){
+		new_position = 0;
+	}
+	
+	file->f_pos = new_position;
+	
+	//reset data pointer
+	data_pointer = fourMB_data;
+
+	return new_position;
+}
+
 
 int fourMB_open(struct inode *inode, struct file *filep)
 {
@@ -66,6 +102,9 @@ ssize_t fourMB_read(struct file *filep, char *buf, size_t count, loff_t *f_pos)
                 return 0;
 	}
 	
+	data_pointer = *f_pos + data_pointer;
+	data_length_to_read -= *f_pos;
+	
 	while (count && *data_pointer && data_length_to_read) {
 
                 copy_to_user(buf++, data_pointer++, sizeof(char));
@@ -85,9 +124,11 @@ ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *
 	int bytes_written = 0;	
 	
 	//if this function is called first time during current write operation
-	//simple reset the written data length to zero
+	//simple reset the written data length 
 	if(data_pointer == fourMB_data){
-		data_length_written = 0;
+		printk("Offset: %d ", *f_pos);
+		data_length_written = *f_pos;
+		data_pointer += *f_pos;
 	}
 
 	while (count && *buf) {

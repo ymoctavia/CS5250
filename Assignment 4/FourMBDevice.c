@@ -16,7 +16,7 @@ int fourMB_open(struct inode *inode, struct file *filep);
 int fourMB_release(struct inode *inode, struct file *filep);
 ssize_t fourMB_read(struct file *filep, char *buf, size_t count, loff_t *f_pos);
 ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *f_pos);
-loff_t fourMB_lseek(struct file *file, loff_t offset, int orig);
+loff_t fourMB_lseek(struct file *file, loff_t offset, int whence);
 static void fourMB_exit(void);
 
 
@@ -69,6 +69,7 @@ loff_t fourMB_lseek(struct file *file, loff_t offset, int whence) {
 
 	return new_position;
 }
+
 
 
 int fourMB_open(struct inode *inode, struct file *filep)
@@ -127,7 +128,6 @@ ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *
 	//simple reset the written data length 
 	if(data_pointer == fourMB_data){
 		printk("Offset: %d ", *f_pos);
-		data_length_written = *f_pos;
 		data_pointer += *f_pos;
 	}
 
@@ -142,7 +142,10 @@ ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *
                 count--;
                 bytes_written++;
 		bytes_written_total++;
-		data_length_written ++;
+
+		if((bytes_written_total + *f_pos) > data_length_written){
+			data_length_written ++;
+		}
         }
 	
 	printk("Total Bytes written so far: %d ", bytes_written_total);

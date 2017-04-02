@@ -37,19 +37,19 @@ size_t data_length_to_read = 0;
 int bytes_written_total = 0;
 int bytes_read_total = 0; 
 
-loff_t fourMB_lseek(struct file *file, loff_t offset, int whence) {
-
+loff_t fourMB_lseek(struct file *file, loff_t offset, int whence) {	
+	
 	loff_t new_position = 0;
-
+	
 	switch(whence) {
 		case SEEK_SET :
-		    new_position = offset;
+		    new_position = (int32_t)offset;
 		    break;
 		case SEEK_CUR : 
-		    new_position = file->f_pos + offset;
+		    new_position = file->f_pos + (int32_t)offset;
 		    break;
 		case SEEK_END : 
-		    new_position = data_length_written - offset;
+		    new_position = data_length_written + (int32_t)offset;
 		    break;
 	}
 
@@ -66,12 +66,12 @@ loff_t fourMB_lseek(struct file *file, loff_t offset, int whence) {
 	
 	//reset data pointer
 	data_pointer = fourMB_data;
-
+	
 	//reset important variables
 	data_length_to_read = data_length_written;
 	bytes_written_total = 0;
 	bytes_read_total = 0;
-
+	
 	return new_position;
 }
 
@@ -131,7 +131,7 @@ ssize_t fourMB_write(struct file *filep, const char *buf, size_t count, loff_t *
 	//if this function is called first time during current write operation
 	//simple reset the written data length 
 	if(data_pointer == fourMB_data){
-		printk("Offset: %d ", *f_pos);
+		//printk("Offset: %d ", *f_pos);
 		data_pointer += *f_pos;
 	}
 

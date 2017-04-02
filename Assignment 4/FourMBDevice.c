@@ -61,15 +61,19 @@ loff_t fourMB_lseek(struct file *file, loff_t offset, int whence) {
 	if(new_position < 0){
 		new_position = 0;
 	}
-	
+
 	file->f_pos = new_position;
 	
 	//reset data pointer
 	data_pointer = fourMB_data;
 
+	//reset important variables
+	data_length_to_read = data_length_written;
+	bytes_written_total = 0;
+	bytes_read_total = 0;
+
 	return new_position;
 }
-
 
 
 int fourMB_open(struct inode *inode, struct file *filep)

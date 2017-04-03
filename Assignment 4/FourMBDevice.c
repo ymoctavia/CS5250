@@ -11,7 +11,10 @@
 
 #define SCULL_IOC_MAGIC 'k'
 #define SCULL_HELLO _IO(SCULL_IOC_MAGIC, 1)
-#define SCULL_IOC_MAXNR 1
+#define SCULL_WRITE_MESSAGE _IOW(SCULL_IOC_MAGIC, 2, char *)
+#define SCULL_READ_MESSAGE _IOR(SCULL_IOC_MAGIC, 3, char *)
+
+#define SCULL_IOC_MAXNR 3
 
 
 #define MAJOR_NUMBER 61/* forward declaration */

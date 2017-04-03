@@ -283,7 +283,7 @@ static int fourMB_init(void)
 	// To release the memory allocated by kmalloc, use kfree.
 	fourMB_data = kmalloc(1024*1024*4*sizeof(char), GFP_KERNEL);
 	
-	dev_msg = kmalloc(1000*sizeof(char), GFP_KERNEL);
+	dev_msg = kmalloc(MAX_DEV_MSG_LENGTH*sizeof(char), GFP_KERNEL);
 	original_dev_msg = kmalloc(MAX_DEV_MSG_LENGTH*sizeof(char), GFP_KERNEL);
 
 

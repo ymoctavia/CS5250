@@ -128,7 +128,7 @@ long fourMB_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			max_length = MAX_DEV_MSG_LENGTH;
 			msg = (char *)arg;
 			tmp_dev_msg = dev_msg;
-			while(*msg && max_length > 1){
+			while(*msg && max_length){
 				copy_from_user(tmp_dev_msg++, msg++, sizeof(char));
 				max_length --;
 			}

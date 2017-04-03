@@ -128,10 +128,13 @@ long fourMB_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			max_length = MAX_DEV_MSG_LENGTH;
 			msg = (char *)arg;
 			tmp_dev_msg = dev_msg;
-			while(*msg && max_length){
+			while(*msg && max_length > 1){
 				copy_from_user(tmp_dev_msg++, msg++, sizeof(char));
 				max_length --;
 			}
+
+			//terminate the input message
+			put_user('\0', tmp_dev_msg);
 			printk(KERN_WARNING "message written: %s\n", dev_msg);
 			break;
 		case SCULL_READ_MESSAGE:

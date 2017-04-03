@@ -16,6 +16,8 @@
 
 #define SCULL_IOC_MAXNR 3
 
+//set the dev msg max length to be 1000
+#define MAX_DEV_MSG_LENGTH 1000
 
 #define MAJOR_NUMBER 61/* forward declaration */
 
@@ -46,6 +48,9 @@ size_t data_length_written = 0;
 size_t data_length_to_read = 0;
 int bytes_written_total = 0;
 int bytes_read_total = 0; 
+
+
+char *dev_msg = NULL;
 
 loff_t fourMB_lseek(struct file *file, loff_t offset, int whence) {	
 	
@@ -87,8 +92,11 @@ loff_t fourMB_lseek(struct file *file, loff_t offset, int whence) {
 
 long fourMB_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	int err = 0, tmp;
+	int err = 0;
 	int retval = 0;
+	char *msg;
+	char *tmp_dev_msg;
+	int max_length;
 	
 	/*
 	* extract the type and number bitfields, and don't decode
@@ -111,9 +119,27 @@ long fourMB_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		err = !access_ok(VERIFY_READ, (void __user *)arg, _IOC_SIZE(cmd));
 
 	if (err) return -EFAULT;
+
 	switch(cmd) {
 		case SCULL_HELLO:
 			printk(KERN_WARNING "hello\n");
+			break;
+		case SCULL_WRITE_MESSAGE:
+			max_length = MAX_DEV_MSG_LENGTH;
+			msg = (char *)arg;
+			tmp_dev_msg = dev_msg;
+			while(*msg && max_length){
+				copy_from_user(tmp_dev_msg++, msg++, sizeof(char));
+				max_length --;
+			}
+			printk(KERN_WARNING "message written: %s\n", dev_msg);
+			break;
+		case SCULL_READ_MESSAGE:
+			msg = (char *)arg;
+			tmp_dev_msg = dev_msg;
+			while(*tmp_dev_msg){
+				copy_to_user(msg++, tmp_dev_msg++, sizeof(char));
+			}
 			break;
 		default: /* redundant, as cmd was checked against MAXNR */
 			return -ENOTTY;
@@ -227,7 +253,8 @@ static int fourMB_init(void)
 	// the type of memory to be allocated.
 	// To release the memory allocated by kmalloc, use kfree.
 	fourMB_data = kmalloc(1024*1024*4*sizeof(char), GFP_KERNEL);
-
+	
+	dev_msg = kmalloc(1000*sizeof(char), GFP_KERNEL);
 
 	if (!fourMB_data) {
 		fourMB_exit();
@@ -254,6 +281,13 @@ static void fourMB_exit(void)
 		kfree(fourMB_data);
 		fourMB_data = NULL;
 	}
+	
+	if (dev_msg) {
+		// free the memory and assign the pointer to NULL
+		kfree(dev_msg);
+		dev_msg = NULL;
+	}
+	
 
 	// unregister the device
 	unregister_chrdev(MAJOR_NUMBER, "fourMB");

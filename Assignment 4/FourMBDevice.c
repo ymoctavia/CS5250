@@ -13,8 +13,9 @@
 #define SCULL_HELLO _IO(SCULL_IOC_MAGIC, 1)
 #define SCULL_WRITE_MESSAGE _IOW(SCULL_IOC_MAGIC, 2, char *)
 #define SCULL_READ_MESSAGE _IOR(SCULL_IOC_MAGIC, 3, char *)
+#define SCULL_WRITE_READ_MESSAGE _IOWR(SCULL_IOC_MAGIC, 4, char *)
 
-#define SCULL_IOC_MAXNR 3
+#define SCULL_IOC_MAXNR 4
 
 //set the dev msg max length to be 1000
 #define MAX_DEV_MSG_LENGTH 1000
@@ -51,6 +52,7 @@ int bytes_read_total = 0;
 
 
 char *dev_msg = NULL;
+char *original_dev_msg = NULL;
 
 loff_t fourMB_lseek(struct file *file, loff_t offset, int whence) {	
 	
@@ -128,11 +130,11 @@ long fourMB_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			max_length = MAX_DEV_MSG_LENGTH;
 			msg = (char *)arg;
 			tmp_dev_msg = dev_msg;
-			while(*msg && max_length){
+			while(*msg && max_length > 1){
 				copy_from_user(tmp_dev_msg++, msg++, sizeof(char));
 				max_length --;
 			}
-
+			*tmp_dev_msg = '\0';
 			printk(KERN_WARNING "message written: %s\n", dev_msg);
 			break;
 		case SCULL_READ_MESSAGE:
@@ -144,6 +146,29 @@ long fourMB_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 			//terminate the input message
 			put_user('\0', msg);
+			break;
+		case SCULL_WRITE_READ_MESSAGE:
+			strncpy(original_dev_msg, dev_msg, sizeof(char)*MAX_DEV_MSG_LENGTH);
+			max_length = MAX_DEV_MSG_LENGTH;
+			msg = (char *)arg;
+			tmp_dev_msg = dev_msg;
+			while(*msg && max_length){
+				copy_from_user(tmp_dev_msg++, msg++, sizeof(char));
+				max_length --;
+			}
+			*tmp_dev_msg = '\0';
+			printk(KERN_WARNING "new dev_msg written: %s\n", dev_msg);
+			
+			//now read original value back
+			msg = (char *)arg;
+			tmp_dev_msg = original_dev_msg;
+			while(*tmp_dev_msg){
+				copy_to_user(msg++, tmp_dev_msg++, sizeof(char));
+			}
+
+			//terminate the input message
+			put_user('\0', msg);
+
 			break;
 		default: /* redundant, as cmd was checked against MAXNR */
 			return -ENOTTY;
@@ -259,6 +284,8 @@ static int fourMB_init(void)
 	fourMB_data = kmalloc(1024*1024*4*sizeof(char), GFP_KERNEL);
 	
 	dev_msg = kmalloc(1000*sizeof(char), GFP_KERNEL);
+	original_dev_msg = kmalloc(MAX_DEV_MSG_LENGTH*sizeof(char), GFP_KERNEL);
+
 
 	if (!fourMB_data) {
 		fourMB_exit();
@@ -287,11 +314,13 @@ static void fourMB_exit(void)
 	}
 	
 	if (dev_msg) {
-		// free the memory and assign the pointer to NULL
 		kfree(dev_msg);
 		dev_msg = NULL;
 	}
-	
+	if (original_dev_msg) {
+		kfree(original_dev_msg);
+		original_dev_msg = NULL;
+	}
 
 	// unregister the device
 	unregister_chrdev(MAJOR_NUMBER, "fourMB");

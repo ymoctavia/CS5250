@@ -133,8 +133,6 @@ long fourMB_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				max_length --;
 			}
 
-			//terminate the input message
-			put_user('\0', tmp_dev_msg);
 			printk(KERN_WARNING "message written: %s\n", dev_msg);
 			break;
 		case SCULL_READ_MESSAGE:
@@ -143,6 +141,9 @@ long fourMB_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			while(*tmp_dev_msg){
 				copy_to_user(msg++, tmp_dev_msg++, sizeof(char));
 			}
+
+			//terminate the input message
+			put_user('\0', msg);
 			break;
 		default: /* redundant, as cmd was checked against MAXNR */
 			return -ENOTTY;
